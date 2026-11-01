@@ -1,0 +1,266 @@
+#!/usr/bin/env python
+
+""" #+begin_org
+* Panel::  [[file:/bisos/panels/bisos-apps/NameOfThePanelComeHere/_nodeBase_/fullUsagePanel-en.org]]
+* Overview and Relevant Pointers
+#+end_org """
+
+from bisos import b
+# from bisos.b import cmndsSeed
+from bisos.b import cs
+from bisos.b import b_io
+
+# import collections
+import os
+import typing
+
+from bisos.sbom import pkgsSeed  # pkgsSeed.plantWithWhich("seedSbom.cs")
+ap = pkgsSeed.aptPkg
+
+
+def vscodeAptSource():
+    outcome =  b.subProc.WOpW(invedBy=None, log=1).bash(
+        f"""
+        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /tmp/packages.microsoft.gpg \
+    &&  sudo install -D -o root -g root -m 644 /tmp/packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg \
+    &&  echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null \
+    &&  sudo apt update \
+    &&  sudo apt install -y code
+""")
+
+
+aptPkgsList = [
+    ap("wget"),  #   Just to be sure
+    ap("gpg"),   #   Just to be sure
+    ap("vscode", func=vscodeAptSource),
+]
+
+pkgsSeed.setup(
+    aptPkgsList=aptPkgsList,
+)
+
+
+# Extensions of the local (desktop) VS Code, installed per user into ~/.vscode/extensions.
+# Extensions of a remote VS Code server are installed by hand, from the client.
+# Each entry is (extensionId, pinnedVersion). Pinned versions verified on the Marketplace 2026-10-27.
+vscodeExtensionsList: typing.List[typing.Tuple[str, str]] = [
+    # Emacs integration
+    ("anthropic.claude-code", "2.1.311"),   # Claude panel; its /open URI is the Emacs-to-Claude channel
+    ("tuttieee.emacs-mcx", "0.111.6"),      # Awesome Emacs Keymap
+    ("realDestroyer.org-vscode", "2.4.2"),  # org-vscode; maintained (tootone.org-mode is not, since 2017)
+    # bx selected
+    ("ms-python.python", "2026.10.0"),
+    ("ms-python.vscode-pylance", "2026.4.1"),
+    ("ms-python.debugpy", "2026.6.0"),
+    ("ms-python.vscode-python-envs", "1.40.0"),
+    ("eamodio.gitlens", "19.5.0"),
+]
+
+vscodeExtensionsModes = ("pinned", "latest")
+
+
+def vscodeExtensionSpec(extensionId: str, pinnedVersion: str, mode: str) -> str:
+    """The argument of code --install-extension: id@version when pinned, id when latest."""
+    if mode == "pinned":
+        return f"{extensionId}@{pinnedVersion}"
+    if mode == "latest":
+        return extensionId
+    raise ValueError(f"mode must be one of {vscodeExtensionsModes}, not {mode}")
+
+
+def vscodeExtensionsInstall(mode: str, outcome: b.op.Outcome) -> b.op.Outcome:
+    """Install vscodeExtensionsList into the local VS Code of the invoking user, per mode."""
+    if mode not in vscodeExtensionsModes:
+        b_io.eh.problem_usageError(f"mode must be one of {vscodeExtensionsModes}, not {mode}")
+        return b_io.eh.badOutcome(outcome)
+    if os.geteuid() == 0:
+        b_io.eh.problem_usageError("Extensions are per user: run as the VS Code user, not as root")
+        return b_io.eh.badOutcome(outcome)
+
+    # --force makes code upgrade (latest) or change version (pinned) over an installed extension
+    for extensionId, pinnedVersion in vscodeExtensionsList:
+        spec = vscodeExtensionSpec(extensionId, pinnedVersion, mode)
+        if b.subProc.WOpW(invedBy=None, log=1).bash(
+                f"""code --install-extension {spec} --force""",
+        ).isProblematic():
+            return b_io.eh.badOutcome(outcome)
+
+    return outcome.set(opError=b.op.OpError.Success, opResults=None)
+
+
+def vscodeExtensionsReport() -> None:
+    """Print vscodeExtensionsList next to what the local VS Code has installed."""
+    installedStr = b.subProc.Op(log=0).bash("""code --list-extensions --show-versions""").stdout or ""
+    installed = dict(line.strip().lower().split("@", 1) for line in installedStr.splitlines() if "@" in line)
+    for extensionId, pinnedVersion in vscodeExtensionsList:
+        print(f"{extensionId:35} pinned={pinnedVersion:12} installed={installed.get(extensionId.lower(), '-')}")
+
+
+####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "readme" :extent "verify" :comment "Describe" :parsMand "" :parsOpt "" :argsMin 0 :argsMax 0 :pyInv ""
+""" #+begin_org
+*  _[[elisp:(blee:menu-sel:outline:popupMenu)][±]]_ _[[elisp:(blee:menu-sel:navigation:popupMenu)][Ξ]]_ [[elisp:(outline-show-branches+toggle)][|=]] [[elisp:(bx:orgm:indirectBufOther)][|>]] *[[elisp:(blee:ppmm:org-mode-toggle)][|N]]*  CmndSvc-   [[elisp:(outline-show-subtree+toggle)][||]] <<readme>>  *Describe*  =verify= ro=cli   [[elisp:(org-cycle)][| ]]
+#+end_org """
+class readme(cs.Cmnd):
+    cmndParamsMandatory = [ ]
+    cmndParamsOptional = [ ]
+    cmndArgsLen = {'Min': 0, 'Max': 0,}
+
+    @cs.track(fnLoc=True, fnEntry=True, fnExit=True)
+    def cmnd(self,
+             rtInv: cs.RtInvoker,
+             cmndOutcome: b.op.Outcome,
+    ) -> b.op.Outcome:
+        """Describe"""
+        failed = b_io.eh.badOutcome
+        callParamsDict = {}
+        if self.invocationValidate(rtInv, cmndOutcome, callParamsDict, None).isProblematic():
+            return failed(cmndOutcome)
+####+END:
+        descriptionStr = """\
+We use vscode. Sometimes in combination with blee/emacs.
+
+Two VS Code instances can run on one BISOS host, as the same user:
+  - Local:  desktop VS Code (/usr/share/code/code), on this host's X display next to Blee.
+            Its extensions are installed by this file (extsInstallPinned / extsInstallLatest).
+  - Remote: the VS Code server (~/.vscode-server) that a client (e.g. Windows 11) attaches to.
+            Its extensions are installed by hand, from the client.
+
+Claude credentials: both Claude extensions run on this host and share ~/.claude, so a login made
+in either one serves both. In a corporate environment the login cannot be completed in the local
+instance; complete it once in the remote instance (the client's browser does the sign-in), then
+the local instance uses the same ~/.claude/.credentials.json. No credentials sync script is
+needed where a remote VS Code server is attached. When the refresh token expires (about a week
+after a login), log in again from the remote instance.
+
+Running Claude in both instances at once is fine. A Claude session is one conversation (one
+~/.claude/projects/.../<sessionId>.jsonl), not an instance: do not have the same conversation open
+in both instances at once, or both append to one transcript and it is corrupted.
+
+| What                     | Local (desktop VS Code)                    | Remote (VS Code server)                                |
+|--------------------------+--------------------------------------------+--------------------------------------------------------|
+| User settings            | ~/.config/Code/User/settings.json          | on the client: %APPDATA%\\Code\\User\\settings.json       |
+| Keybindings              | ~/.config/Code/User/keybindings.json       | on the client: %APPDATA%\\Code\\User\\keybindings.json    |
+| Machine settings         | -                                          | ~/.vscode-server/data/Machine/settings.json            |
+| Global/workspace state   | ~/.config/Code/User/{globalStorage,...}/   | ~/.vscode-server/data/User/{globalStorage,...}/        |
+| Extensions               | ~/.vscode/extensions/                      | ~/.vscode-server/extensions/ (UI ones on the client)   |
+| Launch flags             | ~/.vscode/argv.json                        | -                                                      |
+| Install CLI              | code --install-extension                   | ~/.vscode-server/cli/servers/Stable-<commit>/server/   |
+|                          |                                            |   bin/code-server --install-extension                  |
+| Workspace settings       | <project>/.vscode/settings.json            | <project>/.vscode/settings.json                        |
+|--------------------------+--------------------------------------------+--------------------------------------------------------|
+| Claude, shared by both:  |                                            |                                                        |
+| OAuth credentials        | ~/.claude/.credentials.json                | (same file)                                            |
+| Account and app state    | ~/.claude.json                             | (same file)                                            |
+| User settings            | ~/.claude/settings.json                    | (same file)                                            |
+| Org-managed settings     | ~/.claude/remote-settings.json, policy-limits.json  | (same files)                                  |
+| Sessions                 | ~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl  | (same files)                                  |
+| User skills              | ~/.claude/skills/                          | (same directory)                                       |
+| IDE lock files           | ~/.claude/ide/<port>.lock, one per running VS Code window        |                                  |
+| Project config           | <project>/CLAUDE.md, <project>/.claude/    | (same files)                                           |
+
+In a remote window settings layer as: client User < host Machine < Workspace.\
+"""
+        print(descriptionStr)
+
+        return cmndOutcome.set(
+            opError=b.op.OpError.Success,
+            opResults=None,
+        )
+
+
+####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "extsReport" :extent "verify" :comment "Listed extensions vs installed" :parsMand "" :parsOpt "" :argsMin 0 :argsMax 0 :pyInv ""
+""" #+begin_org
+*  _[[elisp:(blee:menu-sel:outline:popupMenu)][±]]_ _[[elisp:(blee:menu-sel:navigation:popupMenu)][Ξ]]_ [[elisp:(outline-show-branches+toggle)][|=]] [[elisp:(bx:orgm:indirectBufOther)][|>]] *[[elisp:(blee:ppmm:org-mode-toggle)][|N]]*  CmndSvc-   [[elisp:(outline-show-subtree+toggle)][||]] <<extsReport>>  *Listed extensions vs installed*  =verify= ro=cli   [[elisp:(org-cycle)][| ]]
+#+end_org """
+class extsReport(cs.Cmnd):
+    cmndParamsMandatory = [ ]
+    cmndParamsOptional = [ ]
+    cmndArgsLen = {'Min': 0, 'Max': 0,}
+
+    @cs.track(fnLoc=True, fnEntry=True, fnExit=True)
+    def cmnd(self,
+             rtInv: cs.RtInvoker,
+             cmndOutcome: b.op.Outcome,
+    ) -> b.op.Outcome:
+        """Listed extensions vs installed"""
+        failed = b_io.eh.badOutcome
+        callParamsDict = {}
+        if self.invocationValidate(rtInv, cmndOutcome, callParamsDict, None).isProblematic():
+            return failed(cmndOutcome)
+####+END:
+        vscodeExtensionsReport()
+        return cmndOutcome.set(opError=b.op.OpError.Success, opResults=None)
+
+
+####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "extsInstallPinned" :extent "verify" :comment "Install listed extensions at pinned versions" :parsMand "" :parsOpt "" :argsMin 0 :argsMax 0 :pyInv ""
+""" #+begin_org
+*  _[[elisp:(blee:menu-sel:outline:popupMenu)][±]]_ _[[elisp:(blee:menu-sel:navigation:popupMenu)][Ξ]]_ [[elisp:(outline-show-branches+toggle)][|=]] [[elisp:(bx:orgm:indirectBufOther)][|>]] *[[elisp:(blee:ppmm:org-mode-toggle)][|N]]*  CmndSvc-   [[elisp:(outline-show-subtree+toggle)][||]] <<extsInstallPinned>>  *Install listed extensions at pinned versions*  =verify= ro=cli   [[elisp:(org-cycle)][| ]]
+#+end_org """
+class extsInstallPinned(cs.Cmnd):
+    cmndParamsMandatory = [ ]
+    cmndParamsOptional = [ ]
+    cmndArgsLen = {'Min': 0, 'Max': 0,}
+
+    @cs.track(fnLoc=True, fnEntry=True, fnExit=True)
+    def cmnd(self,
+             rtInv: cs.RtInvoker,
+             cmndOutcome: b.op.Outcome,
+    ) -> b.op.Outcome:
+        """Install listed extensions at pinned versions"""
+        failed = b_io.eh.badOutcome
+        callParamsDict = {}
+        if self.invocationValidate(rtInv, cmndOutcome, callParamsDict, None).isProblematic():
+            return failed(cmndOutcome)
+####+END:
+        return vscodeExtensionsInstall("pinned", cmndOutcome)
+
+
+####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "extsInstallLatest" :extent "verify" :comment "Install or upgrade listed extensions to latest" :parsMand "" :parsOpt "" :argsMin 0 :argsMax 0 :pyInv ""
+""" #+begin_org
+*  _[[elisp:(blee:menu-sel:outline:popupMenu)][±]]_ _[[elisp:(blee:menu-sel:navigation:popupMenu)][Ξ]]_ [[elisp:(outline-show-branches+toggle)][|=]] [[elisp:(bx:orgm:indirectBufOther)][|>]] *[[elisp:(blee:ppmm:org-mode-toggle)][|N]]*  CmndSvc-   [[elisp:(outline-show-subtree+toggle)][||]] <<extsInstallLatest>>  *Install or upgrade listed extensions to latest*  =verify= ro=cli   [[elisp:(org-cycle)][| ]]
+#+end_org """
+class extsInstallLatest(cs.Cmnd):
+    cmndParamsMandatory = [ ]
+    cmndParamsOptional = [ ]
+    cmndArgsLen = {'Min': 0, 'Max': 0,}
+
+    @cs.track(fnLoc=True, fnEntry=True, fnExit=True)
+    def cmnd(self,
+             rtInv: cs.RtInvoker,
+             cmndOutcome: b.op.Outcome,
+    ) -> b.op.Outcome:
+        """Install or upgrade listed extensions to latest"""
+        failed = b_io.eh.badOutcome
+        callParamsDict = {}
+        if self.invocationValidate(rtInv, cmndOutcome, callParamsDict, None).isProblematic():
+            return failed(cmndOutcome)
+####+END:
+        return vscodeExtensionsInstall("latest", cmndOutcome)
+
+def examples_csu() -> b.op.Outcome:
+    """Common Usage Examples for this Command-Service Unit"""
+
+    cmnd = cs.examples.cmndEnter
+    literal = cs.examples.execInsert
+
+    cmndOutcome = b.op.Outcome()
+
+    cs.examples.menuChapter('*Code Execution Examples*')
+    if not (resStr := b.subProc.Op(outcome=cmndOutcome, log=0).bash(
+       f"""which code""").stdout):  return(b_io.eh.badOutcome(cmndOutcome))
+
+    literal(f"which code# {resStr.strip()}")
+    literal("code --version")
+    literal("code --help")
+    literal("alias vscode='code --no-sandbox --disable-gpu --user-data-dir=/tmp/vscode-root'")
+
+    cmnd('readme', comment=" # An overview short description")
+
+    cs.examples.menuChapter('*Local VS Code Extensions (run as the VS Code user, not root)*')
+    cmnd('extsReport', comment=" # Listed extensions: pinned and installed versions")
+    cmnd('extsInstallPinned', comment=" # Install at the pinned versions")
+    cmnd('extsInstallLatest', comment=" # Install, or upgrade, to the latest versions")
+    literal("code --list-extensions --show-versions")
+
+    cs.examples.menuChapter('*End-Of Examples*')
+    return cmndOutcome

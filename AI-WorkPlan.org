@@ -1,0 +1,295 @@
+#+title: Work Plan
+#+DATE: <2026-06-10 Wed 13:54>
+#+AUTHOR: Mohsen BANAN
+#+OPTIONS: toc:4
+#+TAGS: me ai aiAndMe
+
+# Provenance (installed once by aiActivity.cs --- not regenerated):
+#   Date:      2026-10-31T21:12:50+00:00
+#   User:      bystar
+#   Templates: /bisos/apps/defaults/ai-templates
+#   Command:   /bisos/venv/py3/devbin/aiActivity.cs -i initiate --activity=bisos-pip
+
+####+BEGIN: b:ai:workflow/driver
+*  [[elisp:(revert-buffer)][revert-buffer]] | [[elisp:(toggle-read-only)][read/wr]] | [[elisp:(show-all)][Show-All]]  [[elisp:(org-shifttab)][Overview]]  [[elisp:(progn (org-shifttab) (org-content))][Content]] | [[elisp:(delete-other-windows)][(1)]] | [[elisp:(progn (save-buffer) (kill-buffer))][S&Q]] [[elisp:(save-buffer)][Save]] [[elisp:(kill-buffer)][Quit]] [[elisp:(bury-buffer)][Bury]] [[elisp:(magit)][Magit]]
+*  [[elisp:(org-cycle)][AI Workflow Driver :: /bx- commands]]    *After |S|: submitted*
+  VS Code :: [[elisp:(b:vscode/fileOpen)][Visit]] | [[elisp:(b:vscode:claude/dispatch)][Transient]]
+  Session :: [[elisp:(b:vscode:claude/sessionSelect)][select-session]] | [[aiActivity:confirm-root][confirm-root]] | [[aiActivity:confirm-here][confirm-here]]  *|S|*  [[aiActivity:S=confirm-root][confirm-root]] | [[aiActivity:S=confirm-here][confirm-here]]
+  Read    :: [[aiActivity:status-read][status-read]] | [[aiActivity:archive-read][archive-read]] | [[aiActivity:ai-outputs][ai-outputs]]  *|S|*  [[aiActivity:S=status-read][status-read]] | [[aiActivity:S=archive-read][archive-read]] | [[aiActivity:S=ai-outputs][ai-outputs]]
+  Work    :: [[aiActivity:todo-do][todo-do]] | [[aiActivity:todo-done][todo-done]]  *|S|*  [[aiActivity:S=todo-do][todo-do]] | [[aiActivity:S=todo-done][todo-done]]
+  Record  :: [[aiActivity:status-update][status-update]] | [[aiActivity:archive-update][archive-update]]  *|S|*  [[aiActivity:S=status-update][status-update]] | [[aiActivity:S=archive-update][archive-update]]
+  Git     :: [[aiActivity:git-commit-msg][git-commit-msg]] | [[aiActivity:git-commit-walk][git-commit-walk]]  *|S|*  [[aiActivity:S=git-commit-msg][git-commit-msg]]
+  Close   :: [[aiActivity:git-uncommitted-list][git-uncommitted-list]] | [[aiActivity:session-verify][session-verify]]  *|S|*  [[aiActivity:S=git-uncommitted-list][git-uncommitted-list]] | [[aiActivity:S=session-verify][session-verify]]
+
+####+END:
+
+####+BEGIN: b:ai:file/particulars
+* AI Working Context
+  Working Directory: /bxRepos/bisos-pip/vscodeClaude
+  File: /bisos/git/auth/bxRepos/bisos-pip/vscodeClaude/AI-WorkPlan.org
+  Activity: bisos-pip
+  Companion Docs: AI-WORKFLOW.org, AI-Activity.org, AI-DevStatus.org
+
+####+END:
+
+This Work Plan file drives the AI collaborative development.
+Interactions are broken down into "Stages". Each Stage has a set
+of TODOs that I work with Claude to accomplish.
+
+Note to a fresh Claude: read this file together with AI-WORKFLOW.org,
+AI-Activity.org and AI-DevStatus.org to orient yourself. The =<<Context Confirmation>>=
+TODO below is the standard first step, or use =/bx-confirm-root= as the automated equivalent.
+TODOs tagged =:ai:= are assigned to Claude. After completing a TODO, summarize results
+under =----- Results: ------= and mark it DONE.
+
+
+* Overview, Purpose and Context
+
+<<Overview>>
+
+All things related to CLI interfaces to VS Code and its claude plugin
+
+
+* Stage 0: Confirm AI's Understanding of This Repo's Context
+
+Goal: Confirm AI's understanding of the context and capture that in [[Context Confirmation]] TODO.
+
+
+* Stage 0 TODOs
+** +
+** LOOP [#A] <<Context Confirmation>> for AI (typically triggered by /bx-confirm-root) :aiAndMe:
+SCHEDULED: <2026-06-09 Tue>
+Must be repeated each time a new Claude instance is started here.
+Based on the series of files starting from CLAUDE.md in this repo,
+describe succinctly what you have understood.
+Enumerate explicitly which files you have imported and which you have considered.
+Prompt the user to confirm that the desired/appropriate model (/model) is being used for this project.
+Since this is to be repeated, leave the todo tag as LOOP.
+** -
+
+* Stage 1: Misc Place Holder 
+
+<<Stage 1>>
+
+Goal: A placeholder for misc ideas and TODOs
+
+
+* Stage 1 TODOs (Misc)
+** +
+** TODO [#C] A Placeholder
+** -
+
+
+* Stage 2: Move Everything that is vscode related from bisos.aiActivity to here
+
+<<Stage 2>>
+
+Goal: Move Everything that is vscode related to here:
+
+This repo is the Layer 2 of the big picture
+
+- Relevant parts of bisos.aiActivity
+- Also vscode-sbom.pcs
+- Also the relevant parts of README.org of  aiActivity should be moved here.
+
+
+* Stage 2 TODOs  -- In Progress
+** +
+** TODO [#A] <<2.1>> Execute [[Stage 2]] description
+SCHEDULED: <2026-06-09 Tue>
+:PROPERTIES:
+:ORIGIN: Mohsen
+:IMPORTANCE: Medium
+:REPO: this
+:BASE: this
+:FOUND: <2026-10-01 Thu 10:32>
+:END:
+----- Results: ------
+2026-10-31 (Claude). Decided with Mohsen: the package is =bisos.vscodeClaude= (repo renamed from
+vscode-claude); it holds layer 2 and the Python of layers 3 and 4, as separate modules; the changeover
+is one step.
+- Scaffold: =py3/pypiProc.sh= from the pyModule templates, then =pypiProc.sh -i artifactsUpdate=
+  (pyproject.toml, the license, setup.py, .gitignore, .gitattributes, README.org); =ftoProc.sh= and
+  the =_tree*_= files from aiActivity; =bisos/__init__.py= (namespace), =bisos/vscodeClaude/__init__.py=.
+- Moved (copied, compared, then removed from the source; nothing staged):
+  - from bisos-pip/aiActivity: =bin/vscode.cs=, =bin/vscodeClaude.cs=, =vscode_csu.py=,
+    =vscodeEmacs_csu.py=, =vscodeClaude_csu.py= (the working-tree versions, with that repo's
+    uncommitted Stage 22 and 13.2 work);
+  - from bisos/bsip4: =bin/vscode-sbom.pcs=.
+- Imports and names: =bisos.aiActivity= to =bisos.vscodeClaude= (imports, csuList), the description
+  links. The csuListProc and particulars dblock bodies were edited by hand to what regeneration gives.
+- setup.py: its template bodies were stale (=bannaInfo.cs=, =blee=); requires and scripts set to what
+  =pypiProc.sh -i namespaceRequires= and =-i scriptFiles= give (bisos, bisos.b, bisos.common,
+  bisos.sbom; vscode-sbom.pcs, vscode.cs, vscodeClaude.cs), version 0.1. aiActivity's setup.py scripts
+  body likewise (aiActivity.cs, aiActivityAssemble.cs only).
+- README.org written: the layers table (0-5), installation, vscode-sbom.pcs, the three command tables
+  (layer 2 vscode_csu, layer 3 vscodeEmacs_csu, layer 4 vscodeClaude_csu), key files. aiActivity's
+  README: the moved sections became "VS Code and Its Claude Sessions: bisos.vscodeClaude", a pointer.
+- Elsewhere: blee/vscode-claude README, b:vscode.el, b:vscode:claude.el docstrings, the graphviz layers
+  figure (re-rendered) and the Draw figure (images/LibreOffice, its 2.2: the bisos.vscodeClaude box on
+  B and C); the blee-pkg-authorship skill; pointers in aiActivity's and bsip4's AI-DevStatus.
+- Tested, before install (PYTHONPATH=py3): vscode.cs -i vscodeVersion, -i vscodePartner,
+  vscodeClaude.cs -i claudeSessionsList, vscode-sbom.pcs (examples), loading from this tree;
+  aiActivity.cs and aiActivityAssemble.cs still run.
+- Not yet: the reinstall (Mohsen): until then the installed vscode.cs and vscodeClaude.cs fail
+  (ImportError on bisos.aiActivity.vscodeClaude_csu), so Blee's x c, atPrompt and the hooks do too.
+  Not written then: the Blee-Panel and a tests/verify.sh (2.2).
+2026-10-31: Mohsen reinstalled both packages (pkgReInstall edit); from PATH, vscode.cs and
+vscodeClaude.cs run, and the devbin links point here.
+
+** TODO [#A] <<2.2>> Add py3/tests/verify.sh and the Blee-Panel
+:PROPERTIES:
+:ORIGIN: Mohsen
+:IMPORTANCE: Medium
+:REPO: this
+:BASE: this
+:FOUND: <2026-10-31 Sat>
+:END:
+----- Results: ------
+2026-10-31 (Claude):
+- py3/tests/verify.sh: every read-only command from PATH (vscode.cs: version, topology, workspaces,
+  extensions, partner, link snippet; vscodeClaude.cs: sessions, latest, the prompt URI with and
+  without a session, hooksSnippet; vscode-sbom.pcs: aptPkgs_list, extsReport). hookToEmacs runs as a
+  made-up user (LOGNAME/USER), with no partner file and with a stale one it writes and removes: exit 0,
+  nothing printed. Nothing acts on VS Code or reaches the live Blee. Run here: passes.
+- Blee-Panel: py3/panels/bisos.vscodeClaude (the support files and README/ from aiActivity's panel,
+  README/fullUsagePanel-en.org a link to README.org) and _nodeBase_/fullUsagePanel-en.org, written by a
+  script (Claude's scratchpad, genPanel.py) with each dblock's header and the body Blee generates:
+  installation; vscode.cs, layer 2 and layer 3; vscodeClaude.cs; vscode-sbom.pcs; testing; evolution.
+  Linked as /bisos/panels/bisos-core/bisos-pip/bisos.vscodeClaude (blee-binders/bisos-core, untracked).
+  Not yet regenerated in Blee (Update Buf Dblocks fills the runResult outputs).
+- Found: vscode-sbom.pcs's apt entry is named vscode, but the Debian package is code, so
+  aptPkg_isInstalled vscode says False while code is installed. Left as is (a Design and Evolution
+  TODO in the panel, a line in the README).
+** -
+
+
+* Stage 3: Per-User Setup Commands: Install and Check, Not Only Print
+
+<<Stage 3>>
+
+Goal: the per-user setup that layers 3 and 4 need is merged into the user's files by a command, not
+pasted by hand. It is not an sbom (nothing is installed: VS Code and the extension are
+vscode-sbom.pcs's); it configures an installed program for one user, after the sbom. Each setup gets
+=...Install= (merge, idempotent, a backup first) and =...Check= (read-only: present, missing,
+differs), beside the existing =...Snippet=. Decided with Mohsen, 2026-11-01.
+
+
+* Stage 3 TODOs
+** +
+** TODO [#A] <<3.1>> vscodeBleeLinkInstall and vscodeBleeLinkCheck (layer 3, vscode.cs)
+:PROPERTIES:
+:ORIGIN: Mohsen
+:IMPORTANCE: Medium
+:REPO: this
+:BASE: this
+:FOUND: <2026-11-01 Sun>
+:END:
+- Merge the "Blee: open here" task into =~/.config/Code/User/tasks.json= (create it when missing),
+  the =ctrl+alt+e= key into =keybindings.json=, =task.saveBeforeRun= into =settings.json=.
+- VS Code's files are JSON with comments: keep a leading comment block; refuse a file with comments
+  inside (the piece is printed to add by hand). Replace an entry of ours that differs; never touch
+  others' entries.
+- For blee/vscode-claude 10.9 (the VS Code to Emacs key).
+----- Results: ------
+2026-11-01 (Claude): built.
+- Layer 2 (vscode_csu): jsoncRead (comments, trailing commas; the leading comment block kept as a
+  header; comments inside flagged), jsonWrite (backup =<name>.<time>.bak=, atomic, through a symlink),
+  jsoncMerge and mergesReport (one line per piece: present, missing, differs; on install added,
+  replaced, refused). Shared by layers 3 and 4.
+- Layer 3 (vscodeEmacs_csu): bleeLinkPieces (the task, key and setting, now also used by the Snippet),
+  bleeLinkMerge; vscodeBleeLinkCheck and vscodeBleeLinkInstall, each with an optional User directory
+  (tests). Ours is found by the task's label; another user binding on ctrl+alt+e is noted.
+- Tested through the dispatcher, on scratch directories: an empty one (created; a second run all
+  present, no backup); a VS Code-like one (the header comment kept, another task kept, trailing commas,
+  our task out of date replaced, task.saveBeforeRun "never" replaced, the other ctrl+alt+e binding
+  noted, backups); a settings.json with a comment inside (refused, untouched; the others created).
+  Check on the real files (read-only): all three missing. Not yet: Install on the real files, and the
+  key pressed in VS Code (Mohsen).
+- README.org (the layer-3 table, a "Per-user setup" paragraph), py3/tests/verify.sh (Check on the real
+  files; Install and Check into a mktemp directory). Not yet: the Blee-Panel's rows.
+- Found by Mohsen's test (Install said added, the key did nothing): vscode.cs starts with
+  "#!/bin/env python", and VS Code started from the desktop has no BISOS venv on its PATH, so the task
+  could not start. The task (and the hooks, run with VS Code's environment by Claude Code) now name the
+  interpreter, sys.executable (/bisos/venv/py3/bisos3/bin/python). Both commands run with a minimal
+  PATH. Check on the old install says "differs"; Install replaces it.
+- Then: Run Task worked, the key did not. Ctrl+Alt+E does not reach VS Code here (a VNC desktop; VS
+  Code's keyboard troubleshooting logged only ctrl), likely the viewer or Windows' AltGr. Added --key
+  (Snippet, Check, Install; default still ctrl+alt+e): Install with another key replaces the binding
+  (found by the task's label), one binding left. Tested on a scratch directory. Check without the same
+  --key reports the installed key as differs.
+- Mohsen: ctrl+k ctrl+e works (installed with --key, pressed in VS Code: the file opened in Blee).
+  It is now the default.
+
+** TODO [#A] <<3.2>> hooksInstall and hooksCheck (layer 4, vscodeClaude.cs)
+:PROPERTIES:
+:ORIGIN: Mohsen
+:IMPORTANCE: Medium
+:REPO: this
+:BASE: this
+:FOUND: <2026-11-01 Sun>
+:END:
+- Merge the Stop and Notification hooks of hookToEmacs into =~/.claude/settings.json=, keeping every
+  other setting and hook. Ours is recognized by its command (=-i hookToEmacs=).
+- For blee/vscode-claude 11.3 to 11.5 and 8.3 (the hooks from a real session).
+----- Results: ------
+2026-11-01 (Claude): built in layer 4 (vscodeClaude_csu): hooksSettingsFile, hooksWanted (also used by
+hooksSnippet now), hooksMerge; hooksCheck and hooksInstall, each with an optional settings file (tests).
+- Tested on a scratch settings.json holding a model, permissions, another Stop hook, a PreToolUse hook
+  and an out-of-date hookToEmacs Notification: Stop added beside the other one, Notification replaced,
+  everything else kept, a backup; a second run all present. A missing file: missing, twice. Check on
+  the real ~/.claude/settings.json (read-only): both missing. Not yet: Install on the real file, and a
+  session with the hooks (Mohsen).
+
+** -
+
+
+* Stage 4: vscodeClaude as a CBM Bringing everything together 
+
+<<Stage 4>>
+
+Goal: We need a CBM (BISOS Capability Bundle Materialization) for brining everything together
+
+That should go in this packages bin directory and then linked to
+from /bisos/platform/sys/cbm/collective/
+
+* Stage 4 TODOs
+** +
+** TODO [#A] <<4.1>> Create the needed CBM files in bin and link to them from sys/cbm/
+:PROPERTIES:
+:ORIGIN: Mohsen
+:IMPORTANCE: Medium
+:REPO: this
+:BASE: this
+:FOUND: <2026-11-01 Sun>
+:END:
+----- Results: ------
+2026-11-01 (Claude). Decided with Mohsen: the assemble does extensions, the Blee link and the hooks;
+the leaf is collective/induct/vscodeClaude.
+- bin/vscodeClaude-cbs.pcs (new): the CBS, seedType induct (no units; cbs_materialize runs the sbom
+  and the assemble only), sbom vscode-sbom.pcs, assemble vscodeClaude-assemble.cs.
+- bin/vscodeClaude-assemble.cs (new, from kafka-assemble.cs): extensions (vscode-sbom.pcs -i
+  extsInstallPinned), bleeLink (vscode.cs -i vscodeBleeLinkInstall), hooks (vscodeClaude.cs -i
+  hooksInstall), fullUpdate (the three; per user, refuses root); fullCheck and the three ...Check
+  (extsReport, vscodeBleeLinkCheck, hooksCheck), read-only.
+- The leaf, in bro_rawBisos (/bisos/platform): sys/cbm/collective/induct/vscodeClaude/ with
+  cbmProc.spcs (cbsSpec: /bisos/git/bxRepos/bisos-pip/vscodeClaude/py3/bin/vscodeClaude-cbs.pcs, as
+  kafka's), cbmProc.control available, cbmProc.status. The first induct leaf with a cbmProc.spcs; the
+  collective walk covers hereWeb only, so it is materialized from the leaf.
+- Found: vscode_csu.programPath followed a "." in PATH, so a Check or Install run from py3/bin
+  wanted the repo's ./vscode.cs and reported "differs"; it now skips relative PATH entries.
+- Docs: README.org, "All at Once: the vscodeClaude Capability"; bxGenesis/start rawBisosCBMs
+  README.org, an induct table and the CBS location.
+- Tested: the CBS loads (menu, cbs_type induct); fullCheck, from py3/bin and elsewhere: every
+  extension at its pin, the Blee link and the hooks present; the leaf's menu, cbm_control, and
+  cbm_materialize skipped at available (logged in cbmProc.status). Not yet: cbm_enable and a
+  cbm_materialize (sudo apt for VS Code, then fullUpdate); the new bin files reach devbin only after
+  pypiProc.sh pkgReInstall.
+
+** -
+
+
+# Local Variables:
+# eval: (setq-local toc-org-max-depth 4)
+# eval: (setq-local org-log-done 'time)
+# End:

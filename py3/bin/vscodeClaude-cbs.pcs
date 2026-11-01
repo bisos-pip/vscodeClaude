@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+
+""" #+begin_org
+* Panel::  [[file:./py3/panels/bisos.vscodeClaude/_nodeBase_/fullUsagePanel-en.org]]
+* Overview and Relevant Pointers
+vscodeClaude-cbs.pcs
+cbs: Capability Bundle Specification  -- Based on a cba-sysd.cs seed, of type induct (no units)
+i:  Induct      --- /Non-Service Component/ --- VS Code, Claude Code and Blee for one user
+n:  No Data    -- Materialization is purely based on Realm-BPO
+p:  Platform    -- Materialization is based on Platform-BPO (Site-BPO is not used)
+
+The bundle: vscode-sbom.pcs (VS Code from Microsoft's apt repository, through sudo) and
+vscodeClaude-assemble.cs (for the invoking user: the pinned VS Code extensions, Claude Code's
+among them; the VS Code to Blee link; the Claude Code hooks to Blee). Run it as the VS Code
+user, not as root. The Blee side (the vscode-claude Blee package) comes with Blee.
+#+end_org """
+
+from bisos.capability import cba_sysd_seed
+from bisos.capability import cba_seed
+
+cba_seed.setup(
+    seedType="induct",  # not systemd: cbs_materialize runs the sbom and the assemble only
+    loader=None,
+    sbom="vscode-sbom.pcs",
+    assemble="vscodeClaude-assemble.cs",
+    materialize=None,
+)
+
+cba_sysd_seed.plantWithWhich("cba-sysd.cs")

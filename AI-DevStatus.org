@@ -1,0 +1,77 @@
+#+title: Development Status & Continuation Handoff
+#+TAGS: me ai aiAndMe
+
+# Provenance (installed once by aiActivity.cs --- not regenerated):
+#   Date:      2026-10-31T22:08:33+00:00
+#   User:      bystar
+#   Templates: /bisos/apps/defaults/ai-templates
+#   Command:   /bisos/venv/py3/devbin/aiActivity.cs -i initiate --activity=bisos-pip
+
+####+BEGIN: b:ai:file/particulars
+* AI Working Context
+  Working Directory: /bisos/git/auth/bxRepos/bisos-pip/vscodeClaude
+  File: /bisos/git/auth/bxRepos/bisos-pip/vscodeClaude/AI-DevStatus.org
+  Activity: bisos-pip
+  Companion Docs: AI-WORKFLOW.org, AI-Activity.org, AI-DevStatus.org
+####+END:
+
+This file is a working-state handoff so development can continue on another
+machine (which has this repo but NOT the developer's =~=). It captures the
+architecture, what works, what is untested and the design decisions made so far.
+
+This file is maintained by Claude. Updates are typically triggered by the
+=/bx-status-update= slash command, after major interactions, or before a release.
+
+* Current State
+As of 2026-11-01. Created by Stage 2 (2.1): the VS Code command-line interfaces moved here from
+bisos-pip/aiActivity, and vscode-sbom.pcs from bisos/bsip4. Installed (editable) by Mohsen. Stage 3
+added the per-user Install/Check commands (the Blee link, the Claude Code hooks; both installed on
+Mohsen's account), Stage 4 the capability: vscodeClaude-cbs.pcs and its CBM leaf. Nothing committed
+yet: this repo, aiActivity (deletions) and bsip4 (deletion) go together, before the repos that call
+it (blee/vscode-claude, bro_rawBisos's leaf). The new bin files reach devbin after pkgReInstall.
+
+* Architecture
+- =py3/bin/vscode.cs=: CSXU over =vscode_csu= (layer 2) and =vscodeEmacs_csu= (layer 3).
+- =py3/bin/vscodeClaude.cs=: CSXU over =vscodeClaude_csu= (layer 4), which imports the two below it.
+- =py3/bin/vscode-sbom.pcs=: VS Code from Microsoft's apt repository; the local extensions, pinned.
+- =vscode_csu= also holds the JSONC helpers (jsoncRead, jsonWrite with a backup, jsoncMerge) that
+  vscodeBleeLinkInstall (layer 3) and hooksInstall (layer 4) merge with.
+- =py3/bin/vscodeClaude-cbs.pcs= (CBS, induct: the sbom, then the assemble) and
+  =py3/bin/vscodeClaude-assemble.cs= (per user: extensions, bleeLink, hooks; fullCheck). Its CBM leaf
+  is in bro_rawBisos: =sys/cbm/collective/induct/vscodeClaude/= (/bisos/platform).
+- Callers: Blee's =blee/vscode-claude= (elisp, layers 3 to 5) runs =vscode.cs= and =vscodeClaude.cs=
+  by name; the Claude Code hooks run =vscodeClaude.cs -i hookToEmacs=; aiActivity's =gitOpener=
+  setting may hold =vscode.cs -i bleeMagit=.
+- The layers (0-5) and their three uses: README.org's table; the figure is in blee/vscode-claude,
+  =images/LibreOffice/blee-aiActivity-layers.odg=.
+
+* What Works
+- Installed, from PATH: py3/tests/verify.sh passes (every read-only command; hookToEmacs with no
+  partner and a stale one: exit 0, silent; the Install/Check commands into a scratch dir).
+- On Mohsen's account (2026-11-01): vscodeBleeLinkInstall (Ctrl+K Ctrl+E opens the file in Blee);
+  the hooks installed; vscodeClaude-assemble.cs -i fullCheck: all present, every extension at its pin.
+- The CBM leaf's gate: cbm_materialize skipped at available, logged in cbmProc.status.
+
+* What Is Untested
+- cbm_enable and a real cbm_materialize (sudo apt for VS Code, then fullUpdate) (4.1).
+- The hooks from a real Claude session (read only by sessions started after the install).
+- The Blee-Panel regenerated in Blee (written by a script with the bodies Blee generates).
+- vscode-sbom.pcs's apt entry is named vscode; the Debian package is code (aptPkg_isInstalled says
+  False).
+
+* Key Design Decisions
+- One package for every command-line interface to VS Code: layer 2 plus the Python of layers 3 and 4,
+  kept apart as modules (vscode_csu names neither Emacs nor Claude; vscodeEmacs_csu no Claude).
+- Python name =vscodeClaude= (the Blee package keeps =vscode-claude=).
+- vscode-sbom.pcs installed on PATH with the package (the scripts dblock includes .pcs).
+- Snippets that run outside the shell (the task, the hooks) name sys.executable and absolute paths:
+  VS Code from the desktop has no BISOS venv on PATH; programPath skips relative PATH entries.
+- The key is Ctrl+K Ctrl+E (--key to change it): Ctrl+Alt+E does not reach VS Code over VNC.
+- The capability is induct (no service), materialized as the VS Code user (the assemble refuses
+  root), leaf in collective/induct (Mohsen, 2026-11-01).
+- Pointers outside this repo's import chain: the leaf in bro_rawBisos and its row in bxGenesis/start
+  rawBisosCBMs/README.org (4.1); a critique of the whole stack in blee/vscode-claude NextSteps.org.
+
+# Local Variables:
+# eval: (setq-local toc-org-max-depth 4)
+# End:
