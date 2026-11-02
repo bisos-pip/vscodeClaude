@@ -55,7 +55,9 @@ def pkgVersion():
 requires = [ 
 "bisos",
 "bisos.b",
+"bisos.capability",
 "bisos.common",
+"bisos.csPlayer",
 "bisos.sbom",
 "setuptools==75.8.0",
 "wheel==0.38.4",
@@ -68,6 +70,8 @@ requires = [
 scripts = [ 
 'bin/vscode-sbom.pcs',
 'bin/vscode.cs',
+'bin/vscodeClaude-assemble.cs',
+'bin/vscodeClaude-cbs.pcs',
 'bin/vscodeClaude.cs',
 ]
 ####+END:

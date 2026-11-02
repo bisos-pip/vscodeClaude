@@ -26,9 +26,10 @@ This file is maintained by Claude. Updates are typically triggered by the
 As of 2026-11-01. Created by Stage 2 (2.1): the VS Code command-line interfaces moved here from
 bisos-pip/aiActivity, and vscode-sbom.pcs from bisos/bsip4. Installed (editable) by Mohsen. Stage 3
 added the per-user Install/Check commands (the Blee link, the Claude Code hooks; both installed on
-Mohsen's account), Stage 4 the capability: vscodeClaude-cbs.pcs and its CBM leaf. Nothing committed
-yet: this repo, aiActivity (deletions) and bsip4 (deletion) go together, before the repos that call
-it (blee/vscode-claude, bro_rawBisos's leaf). The new bin files reach devbin after pkgReInstall.
+Mohsen's account), Stage 4 the capability: vscodeClaude-cbs.pcs and its CBM leaf. Committed and
+pushed on 2026-11-01 (308a526), with aiActivity 348e5ee and bsip4 adfb874 (the files it took over),
+and reinstalled, so the new bin files are on PATH. Next, on another machine: cbm_enable and a real
+cbm_materialize at the leaf, and the hooks from a real Claude session.
 
 * Architecture
 - =py3/bin/vscode.cs=: CSXU over =vscode_csu= (layer 2) and =vscodeEmacs_csu= (layer 3).
