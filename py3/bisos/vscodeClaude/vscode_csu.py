@@ -236,26 +236,56 @@ def windowFolderFor(path: typing.Union[str, pathlib.Path]) -> typing.Optional[st
     return None
 
 
+def windowTitles() -> typing.Dict[str, str]:
+    """X window id -> title, per window of the desktop VS Code (xdotool); empty without xdotool."""
+    if not shutil.which('xdotool'):
+        return {}
+    env = dict(codeEnv())
+    found = subprocess.run(['xdotool', 'search', '--class', 'code'], env=env,
+                           capture_output=True, text=True, check=False)
+    titles = {}
+    for wid in found.stdout.split():
+        name = subprocess.run(['xdotool', 'getwindowname', wid], env=env,
+                              capture_output=True, text=True, check=False).stdout.strip()
+        if name.endswith('Visual Studio Code'):
+            titles[wid] = name
+    return titles
+
+
+def _titleNames(title: str, folderName: str) -> bool:
+    """Whether a VS Code window title names folderName as its folder (default window.title:
+    [editor - ]folder - Visual Studio Code)."""
+    return title == f"{folderName} - Visual Studio Code" or title.endswith(f" - {folderName} - Visual Studio Code")
+
+
 def windowFocus(
         path: typing.Union[str, pathlib.Path],
-        newWait: float = 15.0,
+        newWait: float = 30.0,
         settle: float = 3.0,
 ) -> typing.Tuple[str, typing.List[str]]:
     """Bring forward the window that has path as its folder, else open path in a new window.
 
-    Returns (outcome, the code arguments run): 'focused', 'opened' (the new window is listed in
-    windowsOpen, then settle seconds more for its extensions to start), 'timeout' (not listed within
-    newWait seconds), or 'failed' (code failed). Never replaces another window's folder.
+    Returns (outcome, the code arguments run): 'focused', 'opened' (the new window is up, then settle
+    seconds more for its extensions to start), 'timeout' (not up within newWait seconds), or
+    'failed' (code failed). Never replaces another window's folder.
+
+    A new window is up when windowsOpen lists it, or --- since VS Code may write storage.json only
+    later (found 2026-11-03: not within 15 s) --- when an X window not there before has a title
+    naming the folder (windowTitles).
     """
-    spelling = windowFolderFor(path)
-    args = [spelling] if spelling else ['--new-window', str(pathlib.Path(path).expanduser().resolve())]
+    resolved = pathlib.Path(path).expanduser().resolve()
+    spelling = windowFolderFor(resolved)
+    args = [spelling] if spelling else ['--new-window', str(resolved)]
+    before = set(windowTitles()) if not spelling else set()
     if codeRun(args).returncode != 0:
         return 'failed', args
     if spelling:
         return 'focused', args
     deadline = time.monotonic() + newWait
     while time.monotonic() < deadline:
-        if windowFolderFor(path):
+        if windowFolderFor(resolved) or any(
+                wid not in before and _titleNames(title, resolved.name)
+                for wid, title in windowTitles().items()):
             time.sleep(settle)
             return 'opened', args
         time.sleep(0.5)

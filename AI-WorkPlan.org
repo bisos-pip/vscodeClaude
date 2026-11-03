@@ -318,6 +318,12 @@ blee/vscode-claude 14.1.
 - Tested on the desktop: focus of an open window (no new window); a new conversation started at
   vscode-claude by =--session=new --folder==. Not yet: a folder with no window (opened, waited for,
   then the conversation). The classHead bodies were written in the generated form: regenerate in Blee.
+2026-11-03: a folder with no window timed out in Mohsen's Blee (sessionStart from a bisos-pip/aiActivity
+buffer): VS Code had not written the new window to storage.json within 15 s. =windowFocus= now also
+takes an X window that was not there before and whose title names the folder (=windowTitles=, by
+xdotool; the default title ends "<folder> - Visual Studio Code"), and waits up to 30 s. Tested on
+the desktop: bisos-pip/aiActivity, which had no window, =opened= in 4.9 s (3 s of it the settle);
+called again, =focused=, no second window.
 ** -
 
 # Local Variables:
