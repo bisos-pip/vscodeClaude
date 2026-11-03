@@ -95,6 +95,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import time
 import urllib.parse
 
 
@@ -103,6 +104,7 @@ import urllib.parse
 desktopExe = pathlib.Path('/usr/share/code/code')
 userDataDir = pathlib.Path.home() / '.config' / 'Code'
 workspaceStorageDir = userDataDir / 'User' / 'workspaceStorage'
+globalStorageFile = userDataDir / 'User' / 'globalStorage' / 'storage.json'
 
 
 def codeEnv() -> typing.Dict[str, str]:
@@ -205,6 +207,59 @@ def workspacesKnown() -> typing.List[typing.Tuple[float, str]]:
         target = spec.get('folder') or spec.get('workspace') or ''
         known.append((entry.stat().st_mtime, _uriPath(target)))
     return sorted(known, reverse=True)
+
+
+def windowsOpen() -> typing.List[typing.Optional[str]]:
+    """The folder of each open VS Code window, as it was given when opened (None: no folder).
+
+    From windowsState.openedWindows of the desktop's storage.json, which VS Code keeps current.
+    A folder is matched by its spelling, not its true name: /bxRepos/x and its target are two
+    folders to VS Code.
+    """
+    try:
+        state = json.loads(globalStorageFile.read_text()).get('windowsState', {})
+    except (OSError, ValueError):
+        return []
+    folders: typing.List[typing.Optional[str]] = []
+    for window in state.get('openedWindows', []):
+        target = window.get('folder') or (window.get('workspaceIdentifier') or {}).get('configURIPath')
+        folders.append(_uriPath(target) if target else None)
+    return folders
+
+
+def windowFolderFor(path: typing.Union[str, pathlib.Path]) -> typing.Optional[str]:
+    """The spelling of the open window's folder that is path (by true name), if a window has it."""
+    wanted = pathlib.Path(path).expanduser().resolve()
+    for folder in windowsOpen():
+        if folder and pathlib.Path(folder).resolve() == wanted:
+            return folder
+    return None
+
+
+def windowFocus(
+        path: typing.Union[str, pathlib.Path],
+        newWait: float = 15.0,
+        settle: float = 3.0,
+) -> typing.Tuple[str, typing.List[str]]:
+    """Bring forward the window that has path as its folder, else open path in a new window.
+
+    Returns (outcome, the code arguments run): 'focused', 'opened' (the new window is listed in
+    windowsOpen, then settle seconds more for its extensions to start), 'timeout' (not listed within
+    newWait seconds), or 'failed' (code failed). Never replaces another window's folder.
+    """
+    spelling = windowFolderFor(path)
+    args = [spelling] if spelling else ['--new-window', str(pathlib.Path(path).expanduser().resolve())]
+    if codeRun(args).returncode != 0:
+        return 'failed', args
+    if spelling:
+        return 'focused', args
+    deadline = time.monotonic() + newWait
+    while time.monotonic() < deadline:
+        if windowFolderFor(path):
+            time.sleep(settle)
+            return 'opened', args
+        time.sleep(0.5)
+    return 'timeout', args
 
 
 def extensionsInstalled() -> typing.Optional[typing.List[typing.Tuple[str, str]]]:
@@ -408,7 +463,7 @@ def mergesReport(merges: typing.List[Merge], write: bool) -> bool:
     return not any(m.state == 'refused' for m in merges)
 
 
-windowChoices = ('reuse', 'new')
+windowChoices = ('focus', 'new', 'reuse')
 
 
 def _codeSendReported(cmndOutcome: b.op.Outcome, args: typing.List[str]) -> b.op.Outcome:
@@ -457,8 +512,12 @@ def examples_csu(
     cmnd('vscodeOpenFile', args='README.org', comment="# In the last active window")
     cmnd('vscodeOpenFile', args='README.org 10', comment="# At line 10")
     cmnd('vscodeOpenFile', args='README.org 10 5', comment="# At line 10, column 5")
-    cmnd('vscodeOpenFolder', args='.', comment="# This directory, in the last active window")
+    cmnd('vscodeOpenFolder', args='.', comment="# The window that has this directory, else a new one")
     cmnd('vscodeOpenFolder', pars=od([('window', 'new')]), args='.', comment="# This directory, in a new window")
+    cmnd('vscodeOpenFolder', pars=od([('window', 'reuse')]), args='.', comment="# In the last active window: replaces its folder, ends its sessions")
+
+    cs.examples.menuChapter('=vscodeWindows= -- the open windows and their folders (read-only)')
+    cmnd('vscodeWindows', comment="# One line per window: its folder as opened, and its true name")
     cmnd('vscodeAddFolder', args='..', comment="# Add the parent to the last active window's workspace")
     cmnd('vscodeDiff', args='/etc/hosts /etc/hostname', comment="# The diff view of two files")
 
@@ -471,9 +530,9 @@ def commonParamsSpecify(csParams: cs.param.CmndParamDict) -> None:
 
     csParams.parDictAdd(
         parName='window',
-        parDescription="vscodeOpenFolder: reuse the last active window (default) or open a new one.",
+        parDescription="vscodeOpenFolder: focus the window that has the folder, else a new one (default); new; reuse (replaces the last active window's folder).",
         parDataType=None,
-        parDefault='reuse',
+        parDefault='focus',
         parChoices=list(windowChoices),
         argparseShortOpt=None,
         argparseLongOpt='--window',
@@ -872,12 +931,15 @@ class vscodeOpenFolder(cs.Cmnd):
         window = csParam.mappedValue('window', window)
 ####+END:
         self.cmndDocStr(f""" #+begin_org
-** [[elisp:(org-cycle)][| *CmndDesc:* | ]]  Open the folder in VS Code: in the last active window (=--window=reuse=, the
-default) or a new one (=--window=new=). The folder sets the working directory of the window's Claude
-sessions, and so which =CLAUDE.md= and =.claude/= they load.
+** [[elisp:(org-cycle)][| *CmndDesc:* | ]]  Open the folder in VS Code. =--window=focus= (the default): bring
+forward the window that already has it (matched by true name, passed in that window's own spelling,
+since VS Code matches spellings), else open it in a new window. =--window=new=: a new window.
+=--window=reuse=: the last active window, replacing its folder (the window reloads and its Claude
+sessions end). The folder sets the working directory of the window's Claude sessions, and so which
+=CLAUDE.md= and =.claude/= they load.
         #+end_org """)
         folder = self.cmndArgsGet("0", cmndArgsSpecDict, argsList)
-        window = window or 'reuse'
+        window = window or 'focus'
         if window not in windowChoices:
             b_io.eh.problem_usageError(f"--window must be one of {', '.join(windowChoices)}, not {window}")
             return failed(cmndOutcome)
@@ -888,6 +950,16 @@ sessions, and so which =CLAUDE.md= and =.claude/= they load.
         if not path.is_dir():
             b_io.eh.problem_usageError(f"Not a directory: {path}")
             return failed(cmndOutcome)
+        if window == 'focus':
+            if (problem := displayProblem()):
+                b_io.eh.problem_usageError(problem)
+                return failed(cmndOutcome)
+            outcome, args = windowFocus(path)
+            b_io.ann.note(f"{outcome}: DISPLAY={os.environ['DISPLAY']} {shlex.join(['code', *args])}")
+            if outcome == 'failed':
+                b_io.eh.problem_usageError(f"code {shlex.join(args)} failed")
+                return failed(cmndOutcome)
+            return cmndOutcome.set(opError=b.op.OpError.Success, opResults=outcome)
         return _codeSendReported(cmndOutcome, [f'--{window}-window', str(path)])
 
     def cmndArgsSpec(self):
@@ -900,6 +972,36 @@ sessions, and so which =CLAUDE.md= and =.claude/= they load.
             argDescription="The folder",
         )
         return cmndArgsSpecDict
+
+
+####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "vscodeWindows" :comment "The open VS Code windows and their folders" :extent "verify" :ro "cli" :parsMand "" :parsOpt "" :argsMin 0 :argsMax 0 :pyInv ""
+""" #+begin_org
+*  _[[elisp:(blee:menu-sel:outline:popupMenu)][±]]_ _[[elisp:(blee:menu-sel:navigation:popupMenu)][Ξ]]_ [[elisp:(outline-show-branches+toggle)][|=]] [[elisp:(bx:orgm:indirectBufOther)][|>]] *[[elisp:(blee:ppmm:org-mode-toggle)][|N]]*  CmndSvc-   [[elisp:(outline-show-subtree+toggle)][||]] <<vscodeWindows>>  *The open VS Code windows and their folders*  =verify= ro=cli   [[elisp:(org-cycle)][| ]]
+#+end_org """
+class vscodeWindows(cs.Cmnd):
+    cmndParamsMandatory = [ ]
+    cmndParamsOptional = [ ]
+    cmndArgsLen = {'Min': 0, 'Max': 0,}
+
+    @cs.track(fnLoc=True, fnEntry=True, fnExit=True)
+    def cmnd(self,
+             rtInv: cs.RtInvoker,
+             cmndOutcome: b.op.Outcome,
+    ) -> b.op.Outcome:
+        """The open VS Code windows and their folders"""
+        failed = b_io.eh.badOutcome
+        callParamsDict = {}
+        if self.invocationValidate(rtInv, cmndOutcome, callParamsDict, None).isProblematic():
+            return failed(cmndOutcome)
+####+END:
+        self.cmndDocStr(f""" #+begin_org
+** [[elisp:(org-cycle)][| *CmndDesc:* | ]]  The open windows of the desktop VS Code, one line each: the folder
+as the window was opened with it, a tab, and its true name; =(no folder)= for an empty window. From
+VS Code's storage.json. Read-only.
+        #+end_org """)
+        for folder in windowsOpen():
+            print(f"{folder}\t{pathlib.Path(folder).resolve()}" if folder else "(no folder)")
+        return cmndOutcome.set(opError=b.op.OpError.Success, opResults=None)
 
 
 ####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "vscodeAddFolder" :comment "Add a folder to the last active VS Code window" :extent "verify" :ro "cli" :parsMand "" :parsOpt "" :argsMin 1 :argsMax 1 :pyInv ""

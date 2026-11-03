@@ -288,6 +288,37 @@ the leaf is collective/induct/vscodeClaude.
 
 ** -
 
+* Stage 5: Windows by Folder --- Session-Root
+
+Goal: a VS Code window per Session-Root (bisos.aiActivity's ModelAndTerminology panel): bring forward
+the window that has a folder, never replace one, and start a new conversation in it. The Blee side is
+blee/vscode-claude 14.1.
+
+* Stage 5 TODOs
+** +
+** TODO [#A] <<5.1>> windowsOpen, windowFocus, vscodeOpenFolder --window=focus, claudePrompt --folder :aiAndMe:
+:PROPERTIES:
+:ORIGIN: Mohsen
+:IMPORTANCE: High
+:REPO: this
+:BASE: this
+:FOUND: <2026-11-02 Mon>
+:END:
+----- Results: ------
+2026-11-02 (Claude):
+- Found on the desktop: VS Code matches a folder by the spelling it was opened with, not its true
+  name: a window opened on /bxRepos/blee/vscode-claude is not found by =code
+  /bisos/git/auth/bxRepos/blee/vscode-claude=, which opened a second window.
+- vscode_csu: =windowsOpen= (the open windows' folders, from storage.json's windowsState, which VS
+  Code keeps current), =windowFolderFor= (by true name), =windowFocus= (that window's own spelling,
+  else =--new-window= and a wait until it is listed). =vscodeOpenFolder --window=focus= is the new
+  default (=new=, =reuse= kept; reuse replaces the window's folder); new =vscodeWindows=.
+- vscodeClaude_csu: =claudePrompt --folder=<dir>= brings that window forward first (the /open URI
+  goes to the last active window), so a new conversation starts at its Session-Root.
+- Tested on the desktop: focus of an open window (no new window); a new conversation started at
+  vscode-claude by =--session=new --folder==. Not yet: a folder with no window (opened, waited for,
+  then the conversation). The classHead bodies were written in the generated form: regenerate in Blee.
+** -
 
 # Local Variables:
 # eval: (setq-local toc-org-max-depth 4)

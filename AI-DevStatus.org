@@ -31,6 +31,14 @@ pushed on 2026-11-01 (308a526), with aiActivity 348e5ee and bsip4 adfb874 (the f
 and reinstalled, so the new bin files are on PATH. Next, on another machine: cbm_enable and a real
 cbm_materialize at the leaf, and the hooks from a real Claude session.
 
+2026-11-02 (Stage 5, from a blee/vscode-claude session; details in 5.1's Results): windows by folder,
+for the Session-Root model (bisos.aiActivity's ModelAndTerminology panel). VS Code matches a folder by
+the spelling it was opened with, so =vscode_csu.windowsOpen= reads the open windows from its
+storage.json and =windowFocus= passes an open window's own spelling, else opens a new window and
+waits for it. =vscodeOpenFolder --window=focus= is the default; =vscodeWindows= is new;
+=claudePrompt --folder== starts a new conversation in that folder's window. Tested on Mohsen's
+desktop (focus; a new conversation at vscode-claude). Uncommitted. Not yet: a folder with no window.
+
 * Architecture
 - =py3/bin/vscode.cs=: CSXU over =vscode_csu= (layer 2) and =vscodeEmacs_csu= (layer 3).
 - =py3/bin/vscodeClaude.cs=: CSXU over =vscodeClaude_csu= (layer 4), which imports the two below it.

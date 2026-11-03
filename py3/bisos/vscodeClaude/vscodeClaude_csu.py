@@ -313,6 +313,8 @@ def examples_csu(
          comment="# Into the latest local session working in this directory")
     cmnd('claudePrompt', pars=od([('session', 'new')]), args='"Hello from vscodeClaude.cs"',
          comment="# Into a new conversation")
+    cmnd('claudePrompt', pars=od([('session', 'new'), ('folder', '.')]), args='"Hello from vscodeClaude.cs"',
+         comment="# A new conversation in the window of this folder (focused, else a new window)")
     cmnd('claudePrompt', pars=od([('session', '<sessionId>')]), args='"Hello from vscodeClaude.cs"',
          comment="# Into a given session (see claudeSessionsList)")
     cmnd('claudePrompt', pars=od([('session', 'new'), ('submit', 'yes')]), args='"Hello from vscodeClaude.cs"',
@@ -357,6 +359,16 @@ def commonParamsSpecify(
         parChoices=[],
         argparseShortOpt=None,
         argparseLongOpt='--session',
+    )
+    csParams.parDictAdd(
+        parName='folder',
+        parDescription=("claudePrompt: first bring forward the VS Code window that has this folder, else "
+                        "open it in a new window, so the prompt (a new conversation) lands there."),
+        parDataType=None,
+        parDefault=None,
+        parChoices=[],
+        argparseShortOpt=None,
+        argparseLongOpt='--folder',
     )
     csParams.parDictAdd(
         parName='submit',
@@ -492,13 +504,13 @@ says so.
         return _promptArgsSpec()
 
 
-####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "claudePrompt" :comment "Put a prompt in a local session's input box" :extent "verify" :ro "cli" :parsMand "" :parsOpt "session cwd submit" :argsMin 1 :argsMax 9999 :pyInv ""
+####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "claudePrompt" :comment "Put a prompt in a local session's input box" :extent "verify" :ro "cli" :parsMand "" :parsOpt "session cwd folder submit" :argsMin 1 :argsMax 9999 :pyInv ""
 """ #+begin_org
-*  _[[elisp:(blee:menu-sel:outline:popupMenu)][±]]_ _[[elisp:(blee:menu-sel:navigation:popupMenu)][Ξ]]_ [[elisp:(outline-show-branches+toggle)][|=]] [[elisp:(bx:orgm:indirectBufOther)][|>]] *[[elisp:(blee:ppmm:org-mode-toggle)][|N]]*  CmndSvc-   [[elisp:(outline-show-subtree+toggle)][||]] <<claudePrompt>>  *Put a prompt in a local session's input box*  =verify= parsOpt=session cwd submit argsMin=1 argsMax=9999 ro=cli   [[elisp:(org-cycle)][| ]]
+*  _[[elisp:(blee:menu-sel:outline:popupMenu)][±]]_ _[[elisp:(blee:menu-sel:navigation:popupMenu)][Ξ]]_ [[elisp:(outline-show-branches+toggle)][|=]] [[elisp:(bx:orgm:indirectBufOther)][|>]] *[[elisp:(blee:ppmm:org-mode-toggle)][|N]]*  CmndSvc-   [[elisp:(outline-show-subtree+toggle)][||]] <<claudePrompt>>  *Put a prompt in a local session's input box*  =verify= parsOpt=session cwd folder submit argsMin=1 argsMax=9999 ro=cli   [[elisp:(org-cycle)][| ]]
 #+end_org """
 class claudePrompt(cs.Cmnd):
     cmndParamsMandatory = [ ]
-    cmndParamsOptional = [ 'session', 'cwd', 'submit', ]
+    cmndParamsOptional = [ 'session', 'cwd', 'folder', 'submit', ]
     cmndArgsLen = {'Min': 1, 'Max': 9999,}
 
     @cs.track(fnLoc=True, fnEntry=True, fnExit=True)
@@ -507,17 +519,19 @@ class claudePrompt(cs.Cmnd):
              cmndOutcome: b.op.Outcome,
              session: typing.Optional[str]=None,  # Cs Optional Param
              cwd: typing.Optional[str]=None,  # Cs Optional Param
+             folder: typing.Optional[str]=None,  # Cs Optional Param
              submit: typing.Optional[str]=None,  # Cs Optional Param
              argsList: typing.Optional[list[str]]=None,  # CsArgs
     ) -> b.op.Outcome:
         """Put a prompt in a local session's input box"""
         failed = b_io.eh.badOutcome
-        callParamsDict = {'session': session, 'cwd': cwd, 'submit': submit, }
+        callParamsDict = {'session': session, 'cwd': cwd, 'folder': folder, 'submit': submit, }
         if self.invocationValidate(rtInv, cmndOutcome, callParamsDict, argsList).isProblematic():
             return failed(cmndOutcome)
         cmndArgsSpecDict = self.cmndArgsSpec()
         session = csParam.mappedValue('session', session)
         cwd = csParam.mappedValue('cwd', cwd)
+        folder = csParam.mappedValue('folder', folder)
         submit = csParam.mappedValue('submit', submit)
 ####+END:
         self.cmndDocStr(f""" #+begin_org
@@ -532,6 +546,10 @@ pasted with a Ctrl+V from =xdotool= (both from =rawBisos-sbom.pcs=). Without =xd
 Ctrl+V. Either way the user presses Enter --- unless =--submit=yes=: then =xdotool= presses Enter in the
 VS Code window once the prompt is in (refused without =xdotool=). The Enter goes to what has the focus
 there, as the paste does.
+
+=--folder=<dir>= first brings forward the window that has =<dir>= as its folder, else opens it in a new
+window and waits for it (=vscode_csu.windowFocus=): the =/open= URI goes to the last active window, so
+this is how a new conversation starts in the window of its Session-Root.
         #+end_org """)
 
         submit = submit or 'no'
@@ -547,6 +565,15 @@ there, as the paste does.
         if (problem := vscode_csu.displayProblem()):
             b_io.eh.problem_usageError(problem)
             return failed(cmndOutcome)
+        if folder:
+            if not pathlib.Path(folder).expanduser().is_dir():
+                b_io.eh.problem_usageError(f"--folder: not a directory: {folder}")
+                return failed(cmndOutcome)
+            outcome, args = vscode_csu.windowFocus(folder)
+            b_io.ann.note(f"{outcome}: DISPLAY={os.environ['DISPLAY']} {shlex.join(['code', *args])}")
+            if outcome in ('failed', 'timeout'):
+                b_io.eh.problem_usageError(f"--folder: the window of {folder} did not come up ({outcome})")
+                return failed(cmndOutcome)
         if clipText is not None:
             if not shutil.which(vscode_csu.clipboardCommand()[0]):
                 b_io.eh.problem_usageError("xclip is not installed (rawBisos-sbom.pcs): a running session's prompt goes on the clipboard")

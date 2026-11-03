@@ -167,19 +167,20 @@ arguments lists its examples, and so does =vscodeClaude.cs=.
 
 Layer 2, =vscode_csu=: no Emacs, no Claude.
 
-| Command                  | What it does                                                   |
-|--------------------------+----------------------------------------------------------------|
-| =vscodeVersion=          | version, commit, architecture                                  |
-| =vscodeTopology=         | can this shell reach a desktop VS Code, on which =DISPLAY=     |
-| =vscodeWorkspaces=       | the folders VS Code has state for, newest first (a history)    |
-| =vscodeExtensions=       | the installed extensions (installing them: =vscode-sbom.pcs=)  |
-| =vscodeExtensionVersion= | one extension's version, e.g. =anthropic.claude-code=          |
-| =vscodeFocus=            | bring a window to the front, by its folder's name              |
-| =vscodeOpenFile=         | a file, at a line and column                                   |
-| =vscodeOpenFolder=       | a folder, in the last active window or a new one (=--window==) |
-| =vscodeAddFolder=        | add a folder to the current window's workspace                 |
-| =vscodeDiff=             | the diff view of two files                                     |
-| =vscodeOpenUri=          | hand a URI to the desktop VS Code (=code --open-url=)          |
+| Command                  | What it does                                                  |
+|--------------------------+---------------------------------------------------------------|
+| =vscodeVersion=          | version, commit, architecture                                 |
+| =vscodeTopology=         | can this shell reach a desktop VS Code, on which =DISPLAY=    |
+| =vscodeWorkspaces=       | the folders VS Code has state for, newest first (a history)   |
+| =vscodeWindows=          | the open windows: each folder as opened, and its true name    |
+| =vscodeExtensions=       | the installed extensions (installing them: =vscode-sbom.pcs=) |
+| =vscodeExtensionVersion= | one extension's version, e.g. =anthropic.claude-code=         |
+| =vscodeFocus=            | bring a window to the front, by its folder's name             |
+| =vscodeOpenFile=         | a file, at a line and column                                  |
+| =vscodeOpenFolder=       | a folder: its open window, else a new one (=--window==)       |
+| =vscodeAddFolder=        | add a folder to the current window's workspace                |
+| =vscodeDiff=             | the diff view of two files                                    |
+| =vscodeOpenUri=          | hand a URI to the desktop VS Code (=code --open-url=)         |
 
 : vscode.cs -i vscodeTopology
 : vscode.cs -i vscodeOpenFile README.org 40 1
@@ -227,7 +228,15 @@ Layer 4, =vscodeClaude_csu=, over the two above.
 | =hooksInstall=         | merge them into it (idempotent, a backup first)               |
 
 =claudeSessionsList= takes =--mode= (local, remote, all) and =--cwd=; =claudePrompt= takes
-=--session= (an id, or =new=), =--cwd=, and =--submit=yes= to press Enter as well (default: you do).
+=--session= (an id, or =new=), =--cwd=, =--folder= (first bring forward that folder's window, else
+open one: a new conversation then starts there), and =--submit=yes= to press Enter as well (default:
+you do).
+
+=vscodeOpenFolder --window=focus= (the default) brings forward the window that already has the
+folder, else opens it in a new window; =new= always opens one; =reuse= puts it in the last active
+window, replacing that window's folder (the window reloads, its Claude sessions end). VS Code matches
+a folder by the spelling it was opened with (=/bxRepos/x= and its true name are two folders to it):
+=focus= finds the open window by true name, from VS Code's =storage.json=, and passes its spelling.
 
 : vscodeClaude.cs -i claudeSessionsList
 : DISPLAY=:1 vscodeClaude.cs -i claudePrompt "/bx-git-commit-msg ."
