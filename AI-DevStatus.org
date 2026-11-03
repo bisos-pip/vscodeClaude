@@ -37,7 +37,14 @@ the spelling it was opened with, so =vscode_csu.windowsOpen= reads the open wind
 storage.json and =windowFocus= passes an open window's own spelling, else opens a new window and
 waits for it. =vscodeOpenFolder --window=focus= is the default; =vscodeWindows= is new;
 =claudePrompt --folder== starts a new conversation in that folder's window. Tested on Mohsen's
-desktop (focus; a new conversation at vscode-claude). Uncommitted. Not yet: a folder with no window.
+desktop (focus; a new conversation at vscode-claude). Committed (658be35, e422ca5: a new window is also
+recognized by its X title).
+
+2026-11-02 (5.2, from a bisos-pip/aiActivity session): the local VS Code upgraded 1.103.2 -> 1.144.1
+with vscode-sbom.pcs's new =codeInstallPinned= (also =codeReport=, =codeInstallLatest=; the apt entry is
+now =code= and the repo entry is added only when missing). Two fixes the upgrade exposed: =windowsOpen=
+reads =lastActiveWindow= too (1.144 lists a single window only there), and =_instance= resolves the
+extension directories (=~= is a symlink here), without which no session was =local=. Uncommitted.
 
 * Architecture
 - =py3/bin/vscode.cs=: CSXU over =vscode_csu= (layer 2) and =vscodeEmacs_csu= (layer 3).
@@ -65,8 +72,10 @@ desktop (focus; a new conversation at vscode-claude). Uncommitted. Not yet: a fo
 - cbm_enable and a real cbm_materialize (sudo apt for VS Code, then fullUpdate) (4.1).
 - The hooks from a real Claude session (read only by sessions started after the install).
 - The Blee-Panel regenerated in Blee (written by a script with the bodies Blee generates).
-- vscode-sbom.pcs's apt entry is named vscode; the Debian package is code (aptPkg_isInstalled says
-  False).
+- vscode-sbom.pcs's =aptPkgs_update all= and =vscodeAptSourceEnsure= on a host without the repo (here
+  the entry existed; only =codeInstallPinned= was run).
+- =windowsOpen= with several windows under 1.144 (only one window was seen); Blee's session-start
+  after the =_instance= fix.
 
 * Key Design Decisions
 - One package for every command-line interface to VS Code: layer 2 plus the Python of layers 3 and 4,

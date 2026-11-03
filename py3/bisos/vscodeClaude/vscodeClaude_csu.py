@@ -154,13 +154,15 @@ def _procStart(pid: int) -> typing.Optional[str]:
 
 
 def _instance(pid: int) -> str:
+    # /proc/<pid>/exe is a true name; HOME may be a symlink (/bxo/usg/bystar -> /bxo/r3/usg/bystar),
+    # so the extension directories are compared as spelled and resolved.
     try:
         exe = pathlib.Path(f'/proc/{pid}/exe').readlink()
     except OSError:
         return 'other'
-    if exe.is_relative_to(localExtensionsDir):
+    if any(exe.is_relative_to(each) for each in (localExtensionsDir, localExtensionsDir.resolve())):
         return 'local'
-    if exe.is_relative_to(remoteExtensionsDir):
+    if any(exe.is_relative_to(each) for each in (remoteExtensionsDir, remoteExtensionsDir.resolve())):
         return 'remote'
     return 'other'
 

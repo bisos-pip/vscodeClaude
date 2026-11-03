@@ -324,6 +324,38 @@ takes an X window that was not there before and whose title names the folder (=w
 xdotool; the default title ends "<folder> - Visual Studio Code"), and waits up to 30 s. Tested on
 the desktop: bisos-pip/aiActivity, which had no window, =opened= in 4.9 s (3 s of it the settle);
 called again, =focused=, no second window.
+
+** TODO [#A] <<5.2>> VS Code 1.144 upgrade: vscode-sbom.pcs code commands; windowFocus and _instance fixes :aiAndMe:
+:PROPERTIES:
+:ORIGIN: Mohsen
+:IMPORTANCE: High
+:REPO: this
+:BASE: this
+:FOUND: <2026-11-02 Mon>
+:END:
+Upgrade the local VS Code above 1.143 through vscode-sbom.pcs, then fix what the upgrade broke.
+----- Results: ------
+2026-11-02 (Claude, from a bisos-pip/aiActivity session):
+- vscode-sbom.pcs: the aptPkg is now =code= (was =vscode=, so =aptPkg_isInstalled= was always False and
+  the func ran on every =aptPkgs_update=). =vscodeAptSourceEnsure= adds Microsoft's repo only when
+  neither =vscode.sources= nor =vscode.list= exists, and then writes the deb822 =vscode.sources= with
+  =Signed-By: /usr/share/keyrings/microsoft.gpg=, as the code package's postinst does: the old func
+  wrote a =vscode.list= with another keyring, a second entry for the repo with a conflicting
+  Signed-By. =vscodeCodePinned= (=1.144.1-1793549573=) and =vscodeCodeMinimum= (=1.143=); new Cmnds
+  =codeReport= (installed, candidate, pinned, minimum by =dpkg --compare-versions=, repo entry),
+  =codeInstallPinned= (=code=<pinned>=, =--allow-downgrades=), =codeInstallLatest=; an examples chapter.
+- Mohsen ran =codeInstallPinned= from outside VS Code: 1.103.2 -> 1.144.1, =codeReport= "minimum met",
+  still one repo entry.
+- After the upgrade =claudePrompt --folder== timed out: with one window, VS Code 1.144.1 keeps it only
+  as =windowsState.lastActiveWindow=, =openedWindows= empty. =windowsOpen= now reads both (deduped);
+  =windowFocus= also returns =focused= when an X window there before the =code= call names the folder
+  (=code --new-window= only brings that window forward). Tested both paths on this window.
+- Then every prompt was refused ("No running local session"): =/proc/<pid>/exe= is a true name
+  (=/bxo/r3/usg/bystar/...=) while =~= is =/bxo/usg/bystar= (=/bxo/usg -> /bxo/r3/usg=). =_instance=
+  compares with the extension directories both as spelled and resolved; =claudeSessionsList= lists
+  both sessions of the window as =local=.
+- The three new classHead dblocks of vscode-sbom.pcs were written in the generated form: regenerate in
+  Blee. Not yet: Blee's session-start sent once more after the =_instance= fix.
 ** -
 
 # Local Variables:

@@ -136,7 +136,10 @@ local VS Code, per user, at pinned versions: among them =anthropic.claude-code= 
 whose =/open= URI is the prompt channel) and the Emacs keymap and org-mode extensions.
 
 : vscode-sbom.pcs -i aptPkgs_update all     # VS Code (code) from packages.microsoft.com
-: vscode-sbom.pcs -i extsReport             # the pinned versions against the installed ones
+: vscode-sbom.pcs -i codeReport             # VS Code installed vs candidate, pinned and minimum
+: vscode-sbom.pcs -i codeInstallPinned      # VS Code at the pinned version (sudo; may downgrade)
+: vscode-sbom.pcs -i codeInstallLatest      # VS Code installed, or upgraded, to the latest
+: vscode-sbom.pcs -i extsReport            # the pinned versions against the installed ones
 : vscode-sbom.pcs -i extsInstallPinned      # install at the pinned versions (as the VS Code user)
 : vscode-sbom.pcs -i extsInstallLatest      # install, or upgrade, to the latest versions
 
@@ -309,7 +312,6 @@ author/maintainer\\
 
 * Planned Improvements
 
-- vscode-sbom.pcs: its apt package is named =vscode=, but the Debian package is =code=.
 - Upload to PyPI and test as pipx install.
 
 # Local Variables:

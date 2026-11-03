@@ -12,27 +12,82 @@ from bisos.b import b_io
 
 # import collections
 import os
+import pathlib
 import typing
 
 from bisos.sbom import pkgsSeed  # pkgsSeed.plantWithWhich("seedSbom.cs")
 ap = pkgsSeed.aptPkg
 
 
-def vscodeAptSource():
-    outcome =  b.subProc.WOpW(invedBy=None, log=1).bash(
+# VS Code itself, the Debian package "code" from Microsoft's apt repo.
+# The code package's own postinst maintains vscode.sources with this keyring; we write the same
+# (deb822, same Signed-By), so the two never conflict. A second entry for the same repo with a
+# different Signed-By makes apt update fail.
+vscodeAptSourcesFile = pathlib.Path("/etc/apt/sources.list.d/vscode.sources")
+vscodeAptListFile = pathlib.Path("/etc/apt/sources.list.d/vscode.list")   # older one-line form
+vscodeAptKeyring = pathlib.Path("/usr/share/keyrings/microsoft.gpg")
+
+# Versions of code: pinned is a full Debian version (apt-cache policy code), checked 2026-11-02.
+vscodeCodePinned = "1.144.1-1793549573"
+vscodeCodeMinimum = "1.143"
+
+
+def vscodeAptSourceEnsure() -> bool:
+    """Add Microsoft's code repo unless an entry for it exists already. True on success."""
+    if vscodeAptSourcesFile.exists() or vscodeAptListFile.exists():
+        return True
+    return not b.subProc.WOpW(invedBy=None, log=1).bash(
         f"""
-        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /tmp/packages.microsoft.gpg \
-    &&  sudo install -D -o root -g root -m 644 /tmp/packages.microsoft.gpg /etc/apt/keyrings/packages.microsoft.gpg \
-    &&  echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null \
-    &&  sudo apt update \
-    &&  sudo apt install -y code
-""")
+        wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /tmp/microsoft.gpg \
+    &&  sudo install -D -o root -g root -m 644 /tmp/microsoft.gpg {vscodeAptKeyring} \
+    &&  printf 'Types: deb\\nURIs: https://packages.microsoft.com/repos/code\\nSuites: stable\\nComponents: main\\nArchitectures: amd64,arm64,armhf\\nSigned-By: {vscodeAptKeyring}\\n' \
+        | sudo tee {vscodeAptSourcesFile} > /dev/null
+""").isProblematic()
+
+
+def vscodeCodeInstall(pkgSpec: str, outcome: b.op.Outcome) -> b.op.Outcome:
+    """apt-get install pkgSpec (code, or code=<version>), after making sure the repo is there."""
+    if not vscodeAptSourceEnsure():
+        return b_io.eh.badOutcome(outcome)
+    if b.subProc.WOpW(invedBy=None, log=1).bash(
+            f"""sudo apt-get update \
+            && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-downgrades {pkgSpec}""",
+    ).isProblematic():
+        return b_io.eh.badOutcome(outcome)
+    print("Restart VS Code (every window) to run the new version.")
+    return outcome.set(opError=b.op.OpError.Success, opResults=None)
+
+
+def vscodeAptInstall():
+    """The func of the code aptPkg: install the latest code."""
+    vscodeCodeInstall("code", b.op.Outcome())
+
+
+def vscodeCodeReport() -> None:
+    """Print the installed and candidate code versions against the pinned and minimum ones."""
+    installed = b.subProc.Op(log=0).bash(
+        """dpkg-query -W -f='${Version}' code 2> /dev/null""").stdout or ""
+    policy = b.subProc.Op(log=0).bash("""apt-cache policy code 2> /dev/null""").stdout or ""
+    candidate = next((line.split(":", 1)[1].strip() for line in policy.splitlines()
+                      if line.strip().startswith("Candidate:")), "")
+    if installed:
+        meets = not b.subProc.Op(log=0).bash(
+            f"""dpkg --compare-versions {installed} ge {vscodeCodeMinimum}""").isProblematic()
+    else:
+        meets = False
+    print(f"installed={installed or '-'}")
+    print(f"candidate={candidate or '-'}")
+    print(f"pinned={vscodeCodePinned}")
+    print(f"minimum={vscodeCodeMinimum}  {'met' if meets else 'NOT met'}")
+    for each in (vscodeAptSourcesFile, vscodeAptListFile):
+        if each.exists():
+            print(f"repo entry: {each}")
 
 
 aptPkgsList = [
     ap("wget"),  #   Just to be sure
     ap("gpg"),   #   Just to be sure
-    ap("vscode", func=vscodeAptSource),
+    ap("code", func=vscodeAptInstall),
 ]
 
 pkgsSeed.setup(
@@ -237,6 +292,77 @@ class extsInstallLatest(cs.Cmnd):
 ####+END:
         return vscodeExtensionsInstall("latest", cmndOutcome)
 
+
+####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "codeReport" :extent "verify" :comment "VS Code installed vs candidate, pinned, minimum" :parsMand "" :parsOpt "" :argsMin 0 :argsMax 0 :pyInv ""
+""" #+begin_org
+*  _[[elisp:(blee:menu-sel:outline:popupMenu)][±]]_ _[[elisp:(blee:menu-sel:navigation:popupMenu)][Ξ]]_ [[elisp:(outline-show-branches+toggle)][|=]] [[elisp:(bx:orgm:indirectBufOther)][|>]] *[[elisp:(blee:ppmm:org-mode-toggle)][|N]]*  CmndSvc-   [[elisp:(outline-show-subtree+toggle)][||]] <<codeReport>>  *VS Code installed vs candidate, pinned, minimum*  =verify= ro=cli   [[elisp:(org-cycle)][| ]]
+#+end_org """
+class codeReport(cs.Cmnd):
+    cmndParamsMandatory = [ ]
+    cmndParamsOptional = [ ]
+    cmndArgsLen = {'Min': 0, 'Max': 0,}
+
+    @cs.track(fnLoc=True, fnEntry=True, fnExit=True)
+    def cmnd(self,
+             rtInv: cs.RtInvoker,
+             cmndOutcome: b.op.Outcome,
+    ) -> b.op.Outcome:
+        """VS Code installed vs candidate, pinned, minimum"""
+        failed = b_io.eh.badOutcome
+        callParamsDict = {}
+        if self.invocationValidate(rtInv, cmndOutcome, callParamsDict, None).isProblematic():
+            return failed(cmndOutcome)
+####+END:
+        vscodeCodeReport()
+        return cmndOutcome.set(opError=b.op.OpError.Success, opResults=None)
+
+
+####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "codeInstallPinned" :extent "verify" :comment "Install VS Code at the pinned version" :parsMand "" :parsOpt "" :argsMin 0 :argsMax 0 :pyInv ""
+""" #+begin_org
+*  _[[elisp:(blee:menu-sel:outline:popupMenu)][±]]_ _[[elisp:(blee:menu-sel:navigation:popupMenu)][Ξ]]_ [[elisp:(outline-show-branches+toggle)][|=]] [[elisp:(bx:orgm:indirectBufOther)][|>]] *[[elisp:(blee:ppmm:org-mode-toggle)][|N]]*  CmndSvc-   [[elisp:(outline-show-subtree+toggle)][||]] <<codeInstallPinned>>  *Install VS Code at the pinned version*  =verify= ro=cli   [[elisp:(org-cycle)][| ]]
+#+end_org """
+class codeInstallPinned(cs.Cmnd):
+    cmndParamsMandatory = [ ]
+    cmndParamsOptional = [ ]
+    cmndArgsLen = {'Min': 0, 'Max': 0,}
+
+    @cs.track(fnLoc=True, fnEntry=True, fnExit=True)
+    def cmnd(self,
+             rtInv: cs.RtInvoker,
+             cmndOutcome: b.op.Outcome,
+    ) -> b.op.Outcome:
+        """Install VS Code at the pinned version"""
+        failed = b_io.eh.badOutcome
+        callParamsDict = {}
+        if self.invocationValidate(rtInv, cmndOutcome, callParamsDict, None).isProblematic():
+            return failed(cmndOutcome)
+####+END:
+        return vscodeCodeInstall(f"code={vscodeCodePinned}", cmndOutcome)
+
+
+####+BEGIN: b:py3:cs:cmnd/classHead :cmndName "codeInstallLatest" :extent "verify" :comment "Install or upgrade VS Code to the latest" :parsMand "" :parsOpt "" :argsMin 0 :argsMax 0 :pyInv ""
+""" #+begin_org
+*  _[[elisp:(blee:menu-sel:outline:popupMenu)][±]]_ _[[elisp:(blee:menu-sel:navigation:popupMenu)][Ξ]]_ [[elisp:(outline-show-branches+toggle)][|=]] [[elisp:(bx:orgm:indirectBufOther)][|>]] *[[elisp:(blee:ppmm:org-mode-toggle)][|N]]*  CmndSvc-   [[elisp:(outline-show-subtree+toggle)][||]] <<codeInstallLatest>>  *Install or upgrade VS Code to the latest*  =verify= ro=cli   [[elisp:(org-cycle)][| ]]
+#+end_org """
+class codeInstallLatest(cs.Cmnd):
+    cmndParamsMandatory = [ ]
+    cmndParamsOptional = [ ]
+    cmndArgsLen = {'Min': 0, 'Max': 0,}
+
+    @cs.track(fnLoc=True, fnEntry=True, fnExit=True)
+    def cmnd(self,
+             rtInv: cs.RtInvoker,
+             cmndOutcome: b.op.Outcome,
+    ) -> b.op.Outcome:
+        """Install or upgrade VS Code to the latest"""
+        failed = b_io.eh.badOutcome
+        callParamsDict = {}
+        if self.invocationValidate(rtInv, cmndOutcome, callParamsDict, None).isProblematic():
+            return failed(cmndOutcome)
+####+END:
+        return vscodeCodeInstall("code", cmndOutcome)
+
+
 def examples_csu() -> b.op.Outcome:
     """Common Usage Examples for this Command-Service Unit"""
 
@@ -255,6 +381,12 @@ def examples_csu() -> b.op.Outcome:
     literal("alias vscode='code --no-sandbox --disable-gpu --user-data-dir=/tmp/vscode-root'")
 
     cmnd('readme', comment=" # An overview short description")
+
+    cs.examples.menuChapter('*VS Code Itself (the code apt package; uses sudo)*')
+    cmnd('codeReport', comment=f" # Installed vs candidate, pinned={vscodeCodePinned}, minimum={vscodeCodeMinimum}")
+    cmnd('codeInstallPinned', comment=" # Install at the pinned version (may downgrade)")
+    cmnd('codeInstallLatest', comment=" # Install, or upgrade, to the latest version")
+    literal("apt-cache policy code")
 
     cs.examples.menuChapter('*Local VS Code Extensions (run as the VS Code user, not root)*')
     cmnd('extsReport', comment=" # Listed extensions: pinned and installed versions")

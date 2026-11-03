@@ -212,18 +212,22 @@ def workspacesKnown() -> typing.List[typing.Tuple[float, str]]:
 def windowsOpen() -> typing.List[typing.Optional[str]]:
     """The folder of each open VS Code window, as it was given when opened (None: no folder).
 
-    From windowsState.openedWindows of the desktop's storage.json, which VS Code keeps current.
-    A folder is matched by its spelling, not its true name: /bxRepos/x and its target are two
-    folders to VS Code.
+    From windowsState of the desktop's storage.json: lastActiveWindow, then openedWindows. With a
+    single window VS Code lists it only as lastActiveWindow, openedWindows empty (seen in 1.144.1,
+    2026-11-02). A folder is matched by its spelling, not its true name: /bxRepos/x and its target
+    are two folders to VS Code.
     """
     try:
         state = json.loads(globalStorageFile.read_text()).get('windowsState', {})
     except (OSError, ValueError):
         return []
     folders: typing.List[typing.Optional[str]] = []
-    for window in state.get('openedWindows', []):
+    windows = [state['lastActiveWindow']] if state.get('lastActiveWindow') else []
+    for window in windows + state.get('openedWindows', []):
         target = window.get('folder') or (window.get('workspaceIdentifier') or {}).get('configURIPath')
-        folders.append(_uriPath(target) if target else None)
+        folder = _uriPath(target) if target else None
+        if folder is None or folder not in folders:
+            folders.append(folder)
     return folders
 
 
@@ -271,15 +275,17 @@ def windowFocus(
 
     A new window is up when windowsOpen lists it, or --- since VS Code may write storage.json only
     later (found 2026-11-03: not within 15 s) --- when an X window not there before has a title
-    naming the folder (windowTitles).
+    naming the folder (windowTitles). If storage.json missed an open window, code --new-window only
+    brings that window forward (VS Code keeps one window per folder): an X window there before whose
+    title names the folder makes it 'focused'.
     """
     resolved = pathlib.Path(path).expanduser().resolve()
     spelling = windowFolderFor(resolved)
     args = [spelling] if spelling else ['--new-window', str(resolved)]
-    before = set(windowTitles()) if not spelling else set()
+    before = windowTitles() if not spelling else {}
     if codeRun(args).returncode != 0:
         return 'failed', args
-    if spelling:
+    if spelling or any(_titleNames(title, resolved.name) for title in before.values()):
         return 'focused', args
     deadline = time.monotonic() + newWait
     while time.monotonic() < deadline:

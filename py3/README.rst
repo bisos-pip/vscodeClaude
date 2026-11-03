@@ -2,7 +2,6 @@
 bisos.vscodeClaude: Command-Line Interfaces to VS Code and Its Claude Extension
 ===============================================================================
 
-
 .. contents::
    :depth: 3
 ..
@@ -43,6 +42,8 @@ Table of Contents TOC
    -  `Installation With pipx <#installation-with-pipx>`__
    -  `Installing VS Code and Its Extensions:
       ``vscode-sbom.pcs`` <#installing-vs-code-and-its-extensions-vscode-sbompcs>`__
+   -  `All at Once: the vscodeClaude Capability (CBS and
+      CBM) <#all-at-once-the-vscodeclaude-capability-cbs-and-cbm>`__
 
 -  `Usage <#usage>`__
 
@@ -56,6 +57,7 @@ Table of Contents TOC
 
 -  `Key Files <#key-files>`__
 -  `Documentation and Blee-Panels <#documentation-and-blee-panels>`__
+-  `Testing <#testing>`__
 -  `Support <#support>`__
 -  `Planned Improvements <#planned-improvements>`__
 
@@ -133,7 +135,9 @@ bisos.vscodeClaude uses the PyCS-Framework to:
 #. list the VS Code Claude sessions and prompt them
    (``vscodeClaude.cs``);
 #. install VS Code and its extensions at pinned versions
-   (``vscode-sbom.pcs``).
+   (``vscode-sbom.pcs``);
+#. bring it all together as one BISOS capability
+   (``vscodeClaude-cbs.pcs``, a CBM leaf).
 
 The core of PyCS-Framework is the *bisos.b* package (the
 PyCS-Foundation). See `bisos.b <https://github.com/bisos-pip/b>`__ for
@@ -170,6 +174,7 @@ The following commands are made available:
 -  ``vscode.cs``
 -  ``vscodeClaude.cs``
 -  ``vscode-sbom.pcs``
+-  ``vscodeClaude-cbs.pcs``, ``vscodeClaude-assemble.cs``
 
 Installing VS Code and Its Extensions: ``vscode-sbom.pcs``
 ----------------------------------------------------------
@@ -186,6 +191,33 @@ extensions.
    vscode-sbom.pcs -i extsReport             # the pinned versions against the installed ones
    vscode-sbom.pcs -i extsInstallPinned      # install at the pinned versions (as the VS Code user)
    vscode-sbom.pcs -i extsInstallLatest      # install, or upgrade, to the latest versions
+
+All at Once: the vscodeClaude Capability (CBS and CBM)
+------------------------------------------------------
+
+``vscodeClaude-cbs.pcs`` is the Capability Bundle Specification of the
+whole setup, of type ``induct`` (an install, no service): its sbom is
+``vscode-sbom.pcs`` (VS Code, through sudo), and its assemble,
+``vscodeClaude-assemble.cs``, sets up the invoking user: the extensions
+at their pinned versions (``extensions``), the VS Code to Blee link
+(``bleeLink``, ``vscodeBleeLinkInstall``) and the Claude Code hooks to
+Blee (``hooks``, ``hooksInstall``). The assemble steps are per user and
+refuse to run as root.
+
+::
+
+   vscodeClaude-assemble.cs -i fullCheck      # read-only: extensions, the Blee link, the hooks
+   vscodeClaude-cbs.pcs -i cbs_materialize    # the sbom, then fullUpdate (as the VS Code user)
+
+Its CBM leaf, a pointer to this CBS gated by ``cbmProc.control``
+(planted ``available``), is
+``/bisos/platform/sys/cbm/collective/induct/vscodeClaude/cbmProc.spcs``:
+
+::
+
+   cbmProc.spcs -i cbm_enable && cbmProc.spcs -i cbm_materialize
+
+The Blee side, the vscode-claude Blee package, comes with Blee.
 
 Usage
 =====
@@ -255,6 +287,12 @@ Layer 3, ``vscodeEmacs_csu``, in the same command program: no Claude.
 | ``vscodeBleeLinkSnippet`` | the VS Code task and key that run       |
 |                           | ``bleeOpenFile``, to paste              |
 +---------------------------+-----------------------------------------+
+| ``vscodeBleeLinkCheck``   | read-only: are the task, key and        |
+|                           | setting in VS Code's files              |
++---------------------------+-----------------------------------------+
+| ``vscodeBleeLinkInstall`` | merge them into VS Code's user files    |
+|                           | (idempotent, backups)                   |
++---------------------------+-----------------------------------------+
 | ``bleeMagit``             | a repo's magit status in the partner    |
 |                           | Emacs (a commit walk)                   |
 +---------------------------+-----------------------------------------+
@@ -264,6 +302,14 @@ below, read the partner file that Blee's ``b:vscode/init`` writes
 (``/bisos/var/blee/vscode/partner-<user>.json``): one Emacs partners
 with one VS Code. A partner is live only if its pid is a running Emacs
 and its socket exists.
+
+**Per-user setup, after ``vscode-sbom.pcs``.** The VS Code to Emacs key
+is set up by ``vscode.cs -i vscodeBleeLinkInstall`` (and the hooks below
+by ``vscodeClaude.cs -i hooksInstall``). They merge into the user's own
+files, keep everything else, back each file up, and change nothing when
+run again. VS Code's files may hold comments: a comment block before the
+JSON is kept; a file with comments inside is refused, and its piece is
+added by hand (``...Snippet`` prints it).
 
 For ``/bx-git-commit-walk`` to open each repo in Blee, set aiActivity's
 ``gitOpener``:
@@ -297,6 +343,12 @@ Layer 4, ``vscodeClaude_csu``, over the two above.
 +--------------------------+------------------------------------------+
 | ``hooksSnippet``         | the ``~/.claude/settings.json`` hooks    |
 |                          | entry for ``hookToEmacs``                |
++--------------------------+------------------------------------------+
+| ``hooksCheck``           | read-only: are those hooks in            |
+|                          | ``~/.claude/settings.json``              |
++--------------------------+------------------------------------------+
+| ``hooksInstall``         | merge them into it (idempotent, a backup |
+|                          | first)                                   |
 +--------------------------+------------------------------------------+
 
 ``claudeSessionsList`` takes ``--mode`` (local, remote, all) and
@@ -351,6 +403,12 @@ Key Files
 | ``bin/vscode-sbom.pcs``          | VS Code and its extensions,      |
 |                                  | pinned                           |
 +----------------------------------+----------------------------------+
+| ``bin/vscodeClaude-cbs.pcs``     | the capability: the sbom, then   |
+|                                  | the assemble                     |
++----------------------------------+----------------------------------+
+| ``bin/vscodeClaude-assemble.cs`` | per user: extensions, the Blee   |
+|                                  | link, the hooks                  |
++----------------------------------+----------------------------------+
 | ``bi                             | layer 2: VS Code itself; the     |
 | sos/vscodeClaude/vscode_csu.py`` | ``xclip`` and ``xdotool``        |
 |                                  | helpers                          |
@@ -381,9 +439,24 @@ Documentation and Blee-Panels
 bisos.vscodeClaude is part of ByStar Digital Ecosystem
 http://www.by-star.net.
 
-Its Blee-Panel,
-``./panels/bisos.vscodeClaude/_nodeBase_/fullUsagePanel-en.org``, is not
-written yet (*planned*).
+Its Blee-Panel is
+`file:./panels/bisos.vscodeClaude/_nodeBase_/fullUsagePanel-en.org <./panels/bisos.vscodeClaude/_nodeBase_/fullUsagePanel-en.org>`__;
+in Blee it is under
+``/bisos/panels/bisos-core/bisos-pip/bisos.vscodeClaude``. It has a
+section per command program and layer, with the read-only commands'
+output and buttons for the actions.
+
+Testing
+=======
+
+``py3/tests/verify.sh`` runs every read-only command from PATH. It
+opens, focuses or prompts nothing in VS Code, and reaches no partner
+Emacs: ``hookToEmacs`` runs as a made-up user, with a missing and then a
+stale partner file.
+
+::
+
+   cd py3/tests && bash -i ./verify.sh
 
 Support
 =======
@@ -396,5 +469,6 @@ Support
 Planned Improvements
 ====================
 
--  Write the fullUsagePanel-en.org Blee-Panel.
+-  vscode-sbom.pcs: its apt package is named ``vscode``, but the Debian
+   package is ``code``.
 -  Upload to PyPI and test as pipx install.
